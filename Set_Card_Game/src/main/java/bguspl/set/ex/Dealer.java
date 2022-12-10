@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -38,6 +39,8 @@ public class Dealer implements Runnable {
      */
     private long reshuffleTime = Long.MAX_VALUE;
 
+
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -50,8 +53,19 @@ public class Dealer implements Runnable {
      */
     @Override
     public void run() {
+        System.out.println("[debug] Dealer run() player-size:"+this.players.length);
+
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
+        for(int i=0;i< players.length;i++){
+            System.out.println("[debug] Dealer run() player-size:"+this.players.length);
+            new Thread(players[i]).start();
+        }
+
+        System.out.println("[debug] Dealer run() player-size:"+this.players.length);
+
         while (!shouldFinish()) {
+         //   Collections.shuffle(deck);
+            updateTimerDisplay(true);
             placeCardsOnTable();
             timerLoop();
             updateTimerDisplay(false);
@@ -61,6 +75,7 @@ public class Dealer implements Runnable {
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
     }
 
+
     /**
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
@@ -68,8 +83,9 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
-            removeCardsFromTable();
-            placeCardsOnTable();
+            removeCardsFromTable(); //
+            placeCardsOnTable(); //
+            terminate=shouldFinish();
         }
     }
 
@@ -94,6 +110,50 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO implement
+        for(int player=0;player<players.length;player++){
+            List<Integer> playerCards=new ArrayList<>(this.table.getPlayerCards(player));
+            if(playerCards.size()<3){
+                continue;
+            }
+            System.out.println("[debug] Dealer.removeCardsFromTable playerCards:"+playerCards.size());
+            List<int[]> setSearch=  this.env.util.findSets(playerCards,1);
+
+            if(setSearch.size()>0){
+                for(int card:setSearch.get(0)){
+                    System.out.println("[debug] Dealer.removeCardsFromTable card:"+card);
+                    this.table.removeCard(this.table.cardToSlot[card]);
+                }
+                this.players[player].point();
+
+            }else{
+                // remove token
+                for(int card:playerCards){
+                    System.out.println("[debug] Dealer.removeCardsFromTable card:"+card);
+                    System.out.println("[debug] Dealer.removeCardsFromTable slot:"+this.table.cardToSlot[card]);
+                    System.out.println("[debug] Dealer.removeCardsFromTable myThread:"+ Thread.currentThread().getName());
+                    int slot=this.table.cardToSlot[card];
+                    this.table.removeToken(player,slot);
+                }
+
+                //
+                this.players[player].penalty();
+                //
+            }
+
+        }
+//
+//        for (playerToken:playersTokens) {
+//
+//            //
+//            if(playerToken.size()<3){
+//                continue;
+//            }
+//
+//            List<int[]> foundSet=env.util.findIfSetExist(playerToken,1);
+//            env.util.findIfSetExist(playerToken,1);
+//
+//        }
+
     }
 
     /**
@@ -101,6 +161,20 @@ public class Dealer implements Runnable {
      */
     private void placeCardsOnTable() {
         // TODO implement
+        for(int i=0;i<this.table.slotToCard.length;i++){
+
+            // case deck is empty
+            if(this.deck.size()==0){return;}
+
+            // place case empty
+            if(this.table.slotToCard[i]==null){
+                // remove first
+                int card=this.deck.get(0);
+                this.deck.remove(0);
+                this.table.placeCard(card,i);
+            }
+        }
+
     }
 
     /**
@@ -108,6 +182,13 @@ public class Dealer implements Runnable {
      */
     private void sleepUntilWokenOrTimeout() {
         // TODO implement
+        // todo change to busy wait
+        try {
+            synchronized (this){
+                this.wait(10);
+            }
+//            Thread.sleep(this.env.config.tableDelayMillis*10000);
+        }catch (InterruptedException ignored){}
     }
 
     /**
@@ -115,19 +196,55 @@ public class Dealer implements Runnable {
      */
     private void updateTimerDisplay(boolean reset) {
         // TODO implement
+        if(reset){
+            this.reshuffleTime=System.currentTimeMillis()+this.env.config.turnTimeoutMillis;
+        }
+        long diff=this.reshuffleTime-System.currentTimeMillis();
+        this.env.ui.setCountdown(Math.max(diff,0),diff<this.env.config.turnTimeoutWarningMillis);
     }
+
 
     /**
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
         // TODO implement
+        for(int i=0;i<this.table.slotToCard.length;i++){
+            //
+            Integer currCard=this.table.slotToCard[i];
+            if (currCard==null){
+                continue;
+            }
+            this.deck.add(currCard);
+            this.table.slotToCard[i]=null;
+            System.out.println("[debug] removeAllCardsFromTable currCard:"+currCard );
+
+            this.env.ui.removeCard(i);
+            this.env.ui.removeTokens(i);
+        }
     }
 
+
+    private int[] getWinnersIds(){
+        int maxScore=players[0].getScore();
+        ArrayList<Integer> winners=new ArrayList<>();
+        for(Player player:players){
+            maxScore=Math.max(maxScore, player.getScore());
+        }
+        for(Player player:players){
+            if(player.getScore()==maxScore){
+                winners.add(player.id);
+            }
+        }
+        return winners.stream().mapToInt(i->i).toArray();
+    }
     /**
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
+
+
+        this.env.ui.announceWinner(getWinnersIds());
         // TODO implement
     }
 }

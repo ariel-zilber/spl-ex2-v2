@@ -152,6 +152,8 @@ public class UserInterfaceImpl extends JFrame implements UserInterface {
         }
 
         private void removeCard(int slot) {
+            System.out.println("[debug] removeCard slot:" + slot);
+
             logger.log(Level.SEVERE, "removing card from slot " + slot);
             int row = slot / config.columns;
             int column = slot % config.columns;

@@ -1,5 +1,8 @@
 package bguspl.set.ex;
 
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 
 import bguspl.set.Env;
@@ -11,7 +14,6 @@ import bguspl.set.Env;
  * @inv score >= 0
  */
 public class Player implements Runnable {
-
     /**
      * The game environment object.
      */
@@ -52,6 +54,19 @@ public class Player implements Runnable {
      */
     private int score;
 
+
+    private Dealer dealer;
+
+
+    private final BlockingQueue<Integer> actions;
+    private final Object lock;
+
+    enum PlayerState{
+        INIT,PENALIZED,SCORED
+    }
+
+
+    private PlayerState timeToWait;
     /**
      * The class constructor.
      *
@@ -66,6 +81,10 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
+        this.dealer=dealer;
+        this.actions= new LinkedBlockingDeque<>(3);
+        this.lock=new Object();
+        this.timeToWait=PlayerState.INIT;
     }
 
     /**
@@ -79,21 +98,77 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // TODO implement main player loop
+            // consume form queue
+            try {
+                int slot=this.actions.take();
+                this.table.keyPressed(this.id,slot);
+
+                if(this.table.getPlayerCards(id).size()==3){
+
+                    // playerThread.wait();
+                    synchronized (this.dealer){
+                        this.dealer.notify();
+                    }
+
+                    //
+                    synchronized (this.lock){
+                        this.lock.wait();
+                    // env.config.penaltyFreezeMillis
+                    }
+
+                    switch (this.timeToWait){
+                        case INIT:
+                            break;
+                        case SCORED:
+                            updateScoreTimeout(env.config.pointFreezeMillis);
+                            this.timeToWait=PlayerState.INIT;
+                            break;
+                        case PENALIZED:
+                            updateScoreTimeout(env.config.penaltyFreezeMillis);
+                            this.timeToWait=PlayerState.INIT;
+                            break;
+                    }
+
+                }
+
+
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+
+            // place
+
+            // if()
+            //
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
     }
-
+    private  void  updateScoreTimeout(long time){
+        long end=System.currentTimeMillis()+time;
+        long diff=time;
+        while(diff>0){
+            this.env.ui.setFreeze(id,diff+1000);
+            diff= end-System.currentTimeMillis();
+        }
+        this.env.ui.setFreeze(id,0);
+    }
     /**
      * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
      * key presses. If the queue of key presses is full, the thread waits until it is not full.
      */
     private void createArtificialIntelligence() {
         // note: this is a very very smart AI (!)
+        System.out.println("[debug] Player.createArtificialIntelligence");
         aiThread = new Thread(() -> {
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
             while (!terminate) {
                 // TODO implement player key press simulator
+                int numOfKeys=env.config.playerKeys(id).length;
+                int randomSlot = ThreadLocalRandom.current().nextInt(0, numOfKeys);
+                keyPressed(randomSlot);
+
                 try {
                     synchronized (this) { wait(); }
                 } catch (InterruptedException ignored) {}
@@ -108,6 +183,7 @@ public class Player implements Runnable {
      */
     public void terminate() {
         // TODO implement
+        System.out.println("[debug] Player.terminate");
     }
 
     /**
@@ -116,7 +192,22 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
+
+        if(this.timeToWait!=PlayerState.INIT){
+            return;
+        }
+        if(this.table.slotToCard[slot]==null){
+            return;
+        }
+
         // TODO implement
+        System.out.println("[debug] Current keyPressed thread - " + Thread.currentThread().getName());
+        System.out.println("[debug] Current keyPressed getState:" + playerThread.getState());
+        System.out.println("[debug] Player.keyPressed:"+slot+" player id:"+this.id);
+        System.out.println("[debug] Player.q size:"+this.actions.size());
+        if(this.actions.size()<3){
+            this.actions.add(slot);
+        }
     }
 
     /**
@@ -127,19 +218,41 @@ public class Player implements Runnable {
      */
     public void point() {
         // TODO implement
-
+        System.out.println("[debug] Player.point for player:"+playerThread.getName());
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
+       // notifyAll();
+        synchronized (this.lock){
+            this.lock.notify();
+            this.actions.clear();
+            this.timeToWait=PlayerState.SCORED;
+        }
+
     }
 
     /**
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        // TODO implement
+        synchronized (this.lock){
+            this.lock.notify();
+            this.actions.clear();
+            this.timeToWait=PlayerState.PENALIZED;
+        }
+//        System.out.println("[debug] Current penalty thread - " + Thread.currentThread().getName());
+//
+//        System.out.println("[debug] Player.penalty  start id:"+this.id);
+//        // TODO implement
+//        try {
+//            Thread.sleep(env.config.penaltyFreezeMillis);
+//        }catch (InterruptedException ignored) {}
+//        System.out.println("[debug] Player.penalty  stop id:"+this.id);
+
     }
 
     public int getScore() {
+        System.out.println("[debug] Player.getScore:");
+
         return score;
     }
 }
