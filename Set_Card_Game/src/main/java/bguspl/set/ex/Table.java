@@ -36,7 +36,6 @@ public class Table {
     // todo
     private List<List<Integer>> playerCards;
     private Boolean[][] selectedSlotsByPlayer;
-    private Object lock;
 private ReentrantLock rel ;
     /**
      * Constructor for testing.
@@ -174,7 +173,7 @@ private ReentrantLock rel ;
     public void placeToken(int player, int slot) {
         System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot+" lock");
 
-        rel.lock();
+      //  rel.lock();
 
         this.playerCards.get(player).add(this.slotToCard[slot]);
         this.env.ui.placeToken(player, slot);
@@ -183,7 +182,7 @@ private ReentrantLock rel ;
         int  playerCardsNumber=this.playerCards.get(player).size();
         selectedSlotsByPlayer[player][slot] = true;
 
-        rel.unlock();
+      //  rel.unlock();
         System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot+" unlock");
 
         // TODO implement
@@ -212,7 +211,6 @@ private ReentrantLock rel ;
         System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
         this.env.ui.removeToken(player, slot);
         removeCardFromPlayerSet(player,this.slotToCard[slot]);
-        this.env.ui.removeToken(player, slot);
         selectedSlotsByPlayer[player][slot] = false;
 
         // TODO implement

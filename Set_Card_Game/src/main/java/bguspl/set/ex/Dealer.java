@@ -116,11 +116,14 @@ public class Dealer implements Runnable {
                 continue;
             }
             System.out.println("[debug] Dealer.removeCardsFromTable playerCards:"+playerCards.size());
+            for(int i=0;i<this.deck.size();i++){
+                System.out.println("[debug] Dealer.removeCardsFromTable i:"+this.deck.get(i)+ " for player:"+player);
+            }
             List<int[]> setSearch=  this.env.util.findSets(playerCards,1);
 
             if(setSearch.size()>0){
                 for(int card:setSearch.get(0)){
-                    System.out.println("[debug] Dealer.removeCardsFromTable card:"+card);
+                    System.out.println("[debug] Dealer.removeCardsFromTable card:"+card+"|slot"+this.table.cardToSlot[card]);
                     this.table.removeCard(this.table.cardToSlot[card]);
                 }
                 this.players[player].point();
@@ -218,7 +221,6 @@ public class Dealer implements Runnable {
             this.deck.add(currCard);
             this.table.slotToCard[i]=null;
             System.out.println("[debug] removeAllCardsFromTable currCard:"+currCard );
-
             this.env.ui.removeCard(i);
             this.env.ui.removeTokens(i);
         }

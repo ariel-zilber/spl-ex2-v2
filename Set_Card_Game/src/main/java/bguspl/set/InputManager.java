@@ -34,9 +34,27 @@ class InputManager extends KeyAdapter {
     public void keyPressed(KeyEvent e) {
         // dispatch the key event to the player according to the key map
         int keyCode = e.getKeyCode();
+        System.out.println("[debug] keyPressed:"+keyCode);
+        // todo:
+        if (keyCode>MAX_KEY_CODE){
+            return;
+        }
         int player = keyMap[keyCode] - 1;
         if (player >= 0){
             env.logger.log(Level.SEVERE, "Key " + keyCode + " was pressed by player " + player);
+            //
+            for(int i =0;i<players.length;i++){
+                Integer[] actionsArray =new Integer[3];
+                actionsArray= (Integer[]) players[i].actions.toArray(actionsArray);
+
+                System.out.println("[debug] keyPressed state:"+players[i].timeToWait+ " for player:"+i);
+                for(int j=0;j<actionsArray.length;j++){
+                    System.out.println("[debug] keyPressed action:"+actionsArray[j]+" at place:"+j+ " for player:"+i);
+                }
+
+            }
+
+
             players[player].keyPressed(keyToSlot[keyCode]);
         }
     }
