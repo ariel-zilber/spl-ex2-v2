@@ -1,7 +1,9 @@
 package bguspl.set.ex;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 
@@ -59,14 +61,13 @@ public class Player implements Runnable {
 
 
     public final BlockingQueue<Integer> actions; //todo
-    private final Object lock;
 
-    enum PlayerState{
-        INIT,PENALIZED,SCORED
+    enum PlayerState {
+        INIT, PENALIZED, SCORED
     }
 
+    public PlayerState playerState; //todo
 
-    public PlayerState timeToWait; //todo
     /**
      * The class constructor.
      *
@@ -81,10 +82,9 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
-        this.dealer=dealer;
-        this.actions= new LinkedBlockingDeque<>(3);
-        this.lock=new Object();
-        this.timeToWait=PlayerState.INIT;
+        this.dealer = dealer;
+        this.actions = new ArrayBlockingQueue<>(3);
+        this.playerState = PlayerState.INIT;
     }
 
     /**
@@ -92,6 +92,7 @@ public class Player implements Runnable {
      */
     @Override
     public void run() {
+        System.out.println("[debug] Player.run start:" + this.id);
         playerThread = Thread.currentThread();
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + "starting.");
         if (!human) createArtificialIntelligence();
@@ -100,79 +101,84 @@ public class Player implements Runnable {
             // TODO implement main player loop
             // consume form queue
             try {
-                //
-                int slot=this.actions.take();
-                this.table.keyPressed(this.id,slot);
-                if(this.table.getPlayerCards(id).size()==3){
-                    System.out.println("[debug] run 0:"+playerThread.getName()+" state:"+this.timeToWait);
+                int slot = this.actions.take();
+                boolean isSet=false;
 
-                    synchronized (this.dealer){
+                synchronized (this.table){
+                    this.table.keyPressed(this.id, slot);
+                    isSet= this.table.getPlayerCards(id).size() == 3;
+                    if(isSet){
+                        this.dealer.claimSet(this);
+                    }
+                }
+                if (isSet) {
+                    System.out.println("[debug] run 0:" + playerThread.getName() + " state:" + this.playerState);
+                    synchronized (this.dealer) {
+                        //
                         this.dealer.notify();
                     }
-                    System.out.println("[debug] run 1:"+playerThread.getName()+" state:"+this.timeToWait);
-
-                    // idle until
-                    // no idsle
-                    synchronized (this.lock){
-                        System.out.println("[debug] run 2:"+playerThread.getName()+" "+this.timeToWait);
-                        if(this.timeToWait==PlayerState.INIT){
+                    System.out.println("[debug] run 1:" + playerThread.getName() + " state:" + this.playerState);
+                    synchronized (this) {
+                        System.out.println("[debug] run 2:" + playerThread.getName() + " " + this.playerState);
+                        if (this.playerState == PlayerState.INIT) {
                             //
-                            System.out.println("[debug] run 2.5:"+playerThread.getName()+" "+this.timeToWait+ " "+playerThread.getState());
-                            this.lock.wait();
+                            System.out.println("[debug] run 2.5:" + playerThread.getName() + " " + this.playerState + " " + playerThread.getState() + " " + this.table.getPlayerCards(id).size());
+                            this.wait();
                         }
-                        System.out.println("[debug] run 2.6:"+playerThread.getName()+" "+this.timeToWait+ " "+playerThread.getState());
-
+                        System.out.println("[debug] run 2.6:" + playerThread.getName() + " " + this.playerState + " " + playerThread.getState());
                         // env.config.penaltyFreezeMillis
                     }
                     //
-                    System.out.println("[debug] run 3:"+playerThread.getName()+" state:"+this.timeToWait);
+                    System.out.println("[debug] run 3:" + playerThread.getName() + " state:" + this.playerState);
 
-                    switch (this.timeToWait){
+                    switch (this.playerState) {
                         case INIT:
-                            System.out.println("[debug] run 8:"+playerThread.getName()+" wtf!!!!!!!!");
+                            System.out.println("[debug] run 8:" + playerThread.getName() + " wtf!!!!!!!!");
                             break;
                         case SCORED:
-                            System.out.println("[debug] run 4:"+playerThread.getName()+" state:"+this.timeToWait);
+                            System.out.println("[debug] run 4:" + playerThread.getName() + " state:" + this.playerState);
                             updateScoreTimeout(env.config.pointFreezeMillis);
-                            this.actions.clear();
-                            this.timeToWait=PlayerState.INIT;
                             break;
                         case PENALIZED:
-                            System.out.println("[debug] run 5:"+playerThread.getName()+" state:"+this.timeToWait);
-
+                            System.out.println("[debug] run 5:" + playerThread.getName() + " state:" + this.playerState);
                             updateScoreTimeout(env.config.penaltyFreezeMillis);
-                            this.actions.clear();
-                            this.timeToWait=PlayerState.INIT;
                             break;
                     }
-                    System.out.println("[debug] run 6:"+playerThread.getName()+" state:"+this.timeToWait);
-
-
+                    System.out.println("[debug] run 6:" + playerThread.getName() + " state:" + this.playerState);
                 }
-
-
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            } catch (InterruptedException ignored) {
             }
-
-
-            // place
-
-            // if()
-            //
         }
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
+        if (!human) try {
+            aiThread.join();
+        } catch (InterruptedException ignored) {
+        }
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
+        System.out.println("[debug] Player.run end:" + this.id);
+
     }
-    private  void  updateScoreTimeout(long time){
-        long end=System.currentTimeMillis()+time;
-        long diff=time;
-        while(diff>0){
-            this.env.ui.setFreeze(id,diff+1000);
-            diff= end-System.currentTimeMillis();
+
+    private void updateScoreTimeout(long time) {
+        long end = System.currentTimeMillis() + time;
+        long diff = time;
+        while (diff > 0) {
+            this.env.ui.setFreeze(id, diff + 1000);
+            diff = end - System.currentTimeMillis();
         }
-        this.env.ui.setFreeze(id,0);
+        this.env.ui.setFreeze(id, 0);
+        this.actions.clear();
+        this.playerState = PlayerState.INIT;
     }
+
+    private void randomAction() {
+        // TODO implement player key press simulator
+        int numOfKeys = env.config.playerKeys(id).length;
+        int randomSlot = ThreadLocalRandom.current().nextInt(0, numOfKeys);
+        keyPressed(randomSlot);
+        System.out.println("[debug] Player.createArtificialIntelligence running");
+
+    }
+
     /**
      * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
      * key presses. If the queue of key presses is full, the thread waits until it is not full.
@@ -183,15 +189,13 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
             while (!terminate) {
-                // TODO implement player key press simulator
-                int numOfKeys=env.config.playerKeys(id).length;
-                int randomSlot = ThreadLocalRandom.current().nextInt(0, numOfKeys);
-                keyPressed(randomSlot);
-                  System.out.println("[debug] Player.createArtificialIntelligence running");
-
+                randomAction();
                 try {
-                    synchronized (this) { wait(env.config.tableDelayMillis*10); }
-                } catch (InterruptedException ignored) {}
+                    synchronized (this) {
+                        wait(env.config.tableDelayMillis * 10);
+                    }
+                } catch (InterruptedException ignored) {
+                }
             }
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -203,7 +207,14 @@ public class Player implements Runnable {
      */
     public void terminate() {
         // TODO implement
-        System.out.println("[debug] Player.terminate");
+        System.out.println("[debug] Player.terminate:" + this.id);
+        terminate = true;
+        playerThread.interrupt();
+        while (playerThread.isAlive())
+            try {
+                playerThread.join();
+            } catch (InterruptedException ignored) {
+            }
     }
 
     /**
@@ -213,22 +224,23 @@ public class Player implements Runnable {
      */
     public void keyPressed(int slot) {
         System.out.println("[debug] Current keyPressed thread - " + playerThread.getName());
-        System.out.println("[debug] Current keyPressed getState:" + playerThread.getState()+" "+timeToWait);
-        System.out.println("[debug] Player.keyPressed:"+slot+" player id:"+this.id+" card:"+this.table.slotToCard[slot]);
-        System.out.println("[debug] Player.q size:"+this.actions.size()+" thread:"+playerThread.getName());
+        System.out.println("[debug] Current keyPressed getState:" + playerThread.getState() + " " + playerState);
+        System.out.println("[debug] Player.keyPressed:" + slot + " player id:" + this.id + " card:" + this.table.slotToCard[slot]);
+        System.out.println("[debug] Player.q size:" + this.actions.size() + " thread:" + playerThread.getName());
 
-        if(this.timeToWait!=PlayerState.INIT){
+        if (this.playerState != PlayerState.INIT) {
             return;
         }
-        if(this.table.slotToCard[slot]==null){
+        if (this.table.slotToCard[slot] == null) {
             return;
         }
-        if(this.actions.size()>=3){
+        //
+        if (this.actions.size() >= 3) {
             return;
         }
         // TODO implement
-
-            this.actions.add(slot);
+        //
+        this.actions.add(slot);
     }
 
     /**
@@ -239,37 +251,33 @@ public class Player implements Runnable {
      */
     public void point() {
 
-       // notifyAll();
-        synchronized (this.lock){
+        synchronized (this) {
             // TODO implement
-            System.out.println("[debug] Player.point for player:"+playerThread.getName()+" state:"+playerThread.getState());
+            System.out.println("[debug] Player.point for player:" + playerThread.getName() + " state:" + playerThread.getState());
             int ignored = table.countCards(); // this part is just for demonstration in the unit tests
             env.ui.setScore(id, ++score);
-            this.lock.notify();
-            this.timeToWait=PlayerState.SCORED;
-            System.out.println("[debug] Player.point for player end:"+playerThread.getName()+" state:"+playerThread.getState());
+            this.notify();
+            this.playerState = PlayerState.SCORED;
+            System.out.println("[debug] Player.point for player end:" + playerThread.getName() + " state:" + playerThread.getState());
         }
-        System.out.println("[debug] Player.point for player end:"+playerThread.getName()+" state:"+playerThread.getState());
+        System.out.println("[debug] Player.point for player end:" + playerThread.getName() + " state:" + playerThread.getState());
 
     }
-
+    public void retry() {
+        synchronized (this){
+            this.notify();
+        }
+    }
     /**
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        synchronized (this.lock){
-            this.lock.notify();
-            this.timeToWait=PlayerState.PENALIZED;
+        synchronized (this) {
+            this.notify();
+            this.playerState = PlayerState.PENALIZED;
         }
         System.out.println("[debug] Current penalty thread - " + Thread.currentThread().getName());
-//
-//        System.out.println("[debug] Player.penalty  start id:"+this.id);
 //        // TODO implement
-//        try {
-//            Thread.sleep(env.config.penaltyFreezeMillis);
-//        }catch (InterruptedException ignored) {}
-//        System.out.println("[debug] Player.penalty  stop id:"+this.id);
-
     }
 
     public int getScore() {

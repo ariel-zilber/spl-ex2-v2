@@ -47,7 +47,7 @@ class InputManager extends KeyAdapter {
                 Integer[] actionsArray =new Integer[3];
                 actionsArray= (Integer[]) players[i].actions.toArray(actionsArray);
 
-                System.out.println("[debug] keyPressed state:"+players[i].timeToWait+ " for player:"+i);
+                System.out.println("[debug] keyPressed state:"+players[i].playerState + " for player:"+i);
                 for(int j=0;j<actionsArray.length;j++){
                     System.out.println("[debug] keyPressed action:"+actionsArray[j]+" at place:"+j+ " for player:"+i);
                 }

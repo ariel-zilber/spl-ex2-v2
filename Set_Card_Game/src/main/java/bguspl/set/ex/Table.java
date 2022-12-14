@@ -36,7 +36,8 @@ public class Table {
     // todo
     private List<List<Integer>> playerCards;
     private Boolean[][] selectedSlotsByPlayer;
-private ReentrantLock rel ;
+    private ReentrantLock lock;
+
     /**
      * Constructor for testing.
      *
@@ -49,7 +50,7 @@ private ReentrantLock rel ;
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
-        rel = new ReentrantLock(true);
+        lock = new ReentrantLock(true);
         // generate empty array list
         playerCards = new ArrayList<>();
         selectedSlotsByPlayer = new Boolean[env.config.players][env.config.tableSize];
@@ -125,8 +126,9 @@ private ReentrantLock rel ;
         this.slotToCard[slot] = null;
         this.cardToSlot[card] = null;
     }
-    private void removeCardFromPlayerSet(int player,int card){
-        System.out.println("[debug] Table.removeCardFromPlayerSet:" + player+" "+ card);
+
+    private void removeCardFromPlayerSet(int player, int card) {
+        System.out.println("[debug] Table.removeCardFromPlayerSet:" + player + " " + card);
 
         int index = this.playerCards.get(player).indexOf(card);
         if (index != -1) {
@@ -134,28 +136,31 @@ private ReentrantLock rel ;
 
         }
     }
-    public List<Integer> getPlayerCards(int player){return playerCards.get(player);};
+
+    public List<Integer> getPlayerCards(int player) {
+        return playerCards.get(player);
+    }
+
+    ;
 
     /**
      * Removes a card from a grid slot on the table.
      *
      * @param slot - the slot from which to remove the card.
      */
-    public void removeCard(int slot) {
-        System.out.println("[debug] table.removeCard slot:"+slot );
 
-        // TODO implement
-        this.env.ui.removeCard(slot);
-        for (int player = 0; player < env.config.players; player++) {
-            if(this.selectedSlotsByPlayer[player][slot] ){
-                removeToken(player,slot);
+    public void removeCard(int slot) {
+        synchronized (this) {
+            System.out.println("[debug] table.removeCard slot:" + slot);
+
+            // TODO implement
+            this.env.ui.removeCard(slot);
+            for (int player = 0; player < env.config.players; player++) {
+                removeToken(player, slot);// removeCardFromPlayerSet call
             }
 
-            this.selectedSlotsByPlayer[player][slot] = false;
-            removeCardFromPlayerSet(player,this.slotToCard[slot]);
+            removeSlotMapping(slot);
         }
-
-        removeSlotMapping(slot);
         try {
             Thread.sleep(env.config.tableDelayMillis);
 
@@ -171,31 +176,27 @@ private ReentrantLock rel ;
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
-        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot+" lock");
-
-      //  rel.lock();
-
-        this.playerCards.get(player).add(this.slotToCard[slot]);
-        this.env.ui.placeToken(player, slot);
-
-        //
-        int  playerCardsNumber=this.playerCards.get(player).size();
-        selectedSlotsByPlayer[player][slot] = true;
-
-      //  rel.unlock();
-        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot+" unlock");
-
-        // TODO implement
+        synchronized (this) {
+            if(this.slotToCard[slot]==null){
+                return;
+            }
+            System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
+            if (!selectedSlotsByPlayer[player][slot]) {
+                this.playerCards.get(player).add(this.slotToCard[slot]);
+                this.env.ui.placeToken(player, slot);
+                selectedSlotsByPlayer[player][slot] = true;
+            }
+            System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
+            // TODO implement
+        }
     }
 
     public void keyPressed(int player, int slot) {
-        System.out.println("[debug] Table.keyPressed player:" + player + ",slot"+slot );
-
-        if (selectedSlotsByPlayer[player][slot]) {
-            removeToken(player, slot);
-        } else {
-            placeToken(player, slot);
-
+        synchronized (this) {
+            System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
+            if (!removeToken(player, slot)) {
+                placeToken(player, slot);
+            }
         }
     }
 
@@ -208,12 +209,21 @@ private ReentrantLock rel ;
      * @return - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
-        this.env.ui.removeToken(player, slot);
-        removeCardFromPlayerSet(player,this.slotToCard[slot]);
-        selectedSlotsByPlayer[player][slot] = false;
+        synchronized (this) {
 
-        // TODO implement
-        return false;
+            System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
+            if (selectedSlotsByPlayer[player][slot]) {
+                this.env.ui.removeToken(player, slot);
+                if(this.slotToCard[slot]==null){
+                    return false;
+                }
+                removeCardFromPlayerSet(player, this.slotToCard[slot]);
+                selectedSlotsByPlayer[player][slot] = false;
+                return true;
+            }
+
+            // TODO implement
+            return false;
+        }
     }
 }
