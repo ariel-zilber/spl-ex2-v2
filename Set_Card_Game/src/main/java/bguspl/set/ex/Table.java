@@ -34,7 +34,7 @@ public class Table {
 
     //
     // todo
-    private List<List<Integer>> playerCards;
+    private volatile  List<List<Integer>> playerCards;
     private Boolean[][] selectedSlotsByPlayer;
     private ReentrantLock lock;
 

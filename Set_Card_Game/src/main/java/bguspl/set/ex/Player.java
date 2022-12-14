@@ -102,14 +102,11 @@ public class Player implements Runnable {
             // consume form queue
             try {
                 int slot = this.actions.take();
-                boolean isSet=false;
-
-                synchronized (this.table){
-                    this.table.keyPressed(this.id, slot);
-                    isSet= this.table.getPlayerCards(id).size() == 3;
-                    if(isSet){
-                        this.dealer.claimSet(this);
-                    }
+                boolean isSet = false;
+                this.table.keyPressed(this.id, slot);
+                isSet = this.table.getPlayerCards(id).size() == 3;
+                if (isSet) {
+                    this.dealer.claimSet(this);
                 }
                 if (isSet) {
                     System.out.println("[debug] run 0:" + playerThread.getName() + " state:" + this.playerState);
@@ -126,7 +123,6 @@ public class Player implements Runnable {
                             this.wait();
                         }
                         System.out.println("[debug] run 2.6:" + playerThread.getName() + " " + this.playerState + " " + playerThread.getState());
-                        // env.config.penaltyFreezeMillis
                     }
                     //
                     System.out.println("[debug] run 3:" + playerThread.getName() + " state:" + this.playerState);
@@ -224,7 +220,7 @@ public class Player implements Runnable {
      */
     public void keyPressed(int slot) {
         System.out.println("[debug] Current keyPressed thread - " + playerThread.getName());
-        System.out.println("[debug] Current keyPressed getState:" + playerThread.getState() + " " + playerState);
+        System.out.println("[debug] Current keyPressed getState:" + this.id + " " + playerThread.getState() + " " + playerState);
         System.out.println("[debug] Player.keyPressed:" + slot + " player id:" + this.id + " card:" + this.table.slotToCard[slot]);
         System.out.println("[debug] Player.q size:" + this.actions.size() + " thread:" + playerThread.getName());
 
@@ -263,11 +259,13 @@ public class Player implements Runnable {
         System.out.println("[debug] Player.point for player end:" + playerThread.getName() + " state:" + playerThread.getState());
 
     }
+
     public void retry() {
-        synchronized (this){
+        synchronized (this) {
             this.notify();
         }
     }
+
     /**
      * Penalize a player and perform other related actions.
      */
