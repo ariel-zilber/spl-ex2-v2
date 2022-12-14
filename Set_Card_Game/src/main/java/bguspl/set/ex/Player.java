@@ -191,6 +191,8 @@ public class Player implements Runnable {
                         wait(env.config.tableDelayMillis * 10);
                     }
                 } catch (InterruptedException ignored) {
+                    System.out.println("[debug] Player.createArtificialIntelligence error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:"+ignored);
+
                 }
             }
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
