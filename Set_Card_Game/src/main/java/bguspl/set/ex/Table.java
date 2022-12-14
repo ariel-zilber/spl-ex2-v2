@@ -34,7 +34,7 @@ public class Table {
 
     //
     // todo
-    private volatile  List<List<Integer>> playerCards;
+    private volatile List<List<Integer>> playerCards;
     private Boolean[][] selectedSlotsByPlayer;
     private ReentrantLock lock;
 
@@ -150,17 +150,18 @@ public class Table {
      */
 
     public void removeCard(int slot) {
-        synchronized (this) {
-            System.out.println("[debug] table.removeCard slot:" + slot);
+        this.lock.lock();
+        System.out.println("[debug] table.removeCard slot:" + slot);
 
-            // TODO implement
-            this.env.ui.removeCard(slot);
-            for (int player = 0; player < env.config.players; player++) {
-                removeToken(player, slot);// removeCardFromPlayerSet call
-            }
-
-            removeSlotMapping(slot);
+        // TODO implement
+        this.env.ui.removeCard(slot);
+        for (int player = 0; player < env.config.players; player++) {
+            removeToken(player, slot);// removeCardFromPlayerSet call
         }
+
+        removeSlotMapping(slot);
+        this.lock.unlock();
+
         try {
             Thread.sleep(env.config.tableDelayMillis);
 
@@ -176,28 +177,27 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
-        synchronized (this) {
-            if(this.slotToCard[slot]==null){
-                return;
-            }
-            System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
-            if (!selectedSlotsByPlayer[player][slot]) {
-                this.playerCards.get(player).add(this.slotToCard[slot]);
-                this.env.ui.placeToken(player, slot);
-                selectedSlotsByPlayer[player][slot] = true;
-            }
-            System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
-            // TODO implement
+        if (this.slotToCard[slot] == null) {
+            return;
         }
+        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
+        if (!selectedSlotsByPlayer[player][slot]) {
+            this.playerCards.get(player).add(this.slotToCard[slot]);
+            this.env.ui.placeToken(player, slot);
+            selectedSlotsByPlayer[player][slot] = true;
+        }
+        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
+        // TODO implement
     }
 
     public void keyPressed(int player, int slot) {
-        synchronized (this) {
-            System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
-            if (!removeToken(player, slot)) {
-                placeToken(player, slot);
-            }
+        lock.lock();
+
+        System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
+        if (!removeToken(player, slot)) {
+            placeToken(player, slot);
         }
+        lock.unlock();
     }
 
 
@@ -209,21 +209,19 @@ public class Table {
      * @return - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        synchronized (this) {
 
-            System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
-            if (selectedSlotsByPlayer[player][slot]) {
-                this.env.ui.removeToken(player, slot);
-                if(this.slotToCard[slot]==null){
-                    return false;
-                }
-                removeCardFromPlayerSet(player, this.slotToCard[slot]);
-                selectedSlotsByPlayer[player][slot] = false;
-                return true;
+        System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
+        if (selectedSlotsByPlayer[player][slot]) {
+            this.env.ui.removeToken(player, slot);
+            if (this.slotToCard[slot] == null) {
+                return false;
             }
-
-            // TODO implement
-            return false;
+            removeCardFromPlayerSet(player, this.slotToCard[slot]);
+            selectedSlotsByPlayer[player][slot] = false;
+            return true;
         }
+
+        // TODO implement
+        return false;
     }
 }

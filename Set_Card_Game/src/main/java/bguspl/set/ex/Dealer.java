@@ -3,6 +3,7 @@ package bguspl.set.ex;
 import bguspl.set.Env;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -74,7 +75,12 @@ public class Dealer implements Runnable {
         System.out.println("[debug] Dealer run() player-size:" + this.players.length);
 
         while (!shouldFinish()) {
-            //   Collections.shuffle(deck);
+            //
+            do {
+                Collections.shuffle(deck);
+
+            }while (this.env.util.findSets(deck, 1).size()<=0);
+
             placeCardsOnTable();
             timerLoop();
             updateTimerDisplay(false);
@@ -107,8 +113,9 @@ public class Dealer implements Runnable {
         System.out.println("[debug] Dealer.terminate:");
 
         terminate = true;
-        for (Player p : players) {
-            p.terminate();
+        for(int i =players.length-1;i>=0;i--){
+            players[i].terminate();
+
         }
     }
 
@@ -128,7 +135,7 @@ public class Dealer implements Runnable {
         List<Integer> playerCards = new ArrayList<>(this.table.getPlayerCards(player));
         // case card was remove
         if (playerCards.size() < 3) {
-            this.players[player].notify();
+            this.players[player].retry();
             return;
         }
 //
@@ -272,6 +279,8 @@ public class Dealer implements Runnable {
 
 
         this.env.ui.announceWinner(getWinnersIds());
+
+        terminate();
         // TODO implement
     }
     public List<Integer> getDeck()

@@ -184,28 +184,31 @@ public class Player implements Runnable {
         System.out.println("[debug] Player.createArtificialIntelligence");
         aiThread = new Thread(() -> {
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
-            int count=0;
+            int count = 0;
             while (!terminate) {
 
-    if (count == 2) {
-        count = 0;
-        List<int[]> deck = this.env.util.findSets(this.dealer.getDeck(), 1);
-        System.out.println("[debug] SmartActionsAI ListSize:" + deck.get(0).length);
-        for (int i = 0; i < deck.size(); i++) {
-            for (int j = 0; j < deck.get(i).length; j++)
-                keyPressed(j);
-        }
-    } else {
+//    if (count == 2) {
+//        count = 0;
+//        List<int[]> deck = this.env.util.findSets(this.dealer.getDeck(), 1);
+//        System.out.println("[debug] SmartActionsAI ListSize:" + deck.get(0).length);
+//        for (int i = 0; i < deck.size(); i++) {
+//            for (int j = 0; j < deck.get(i).length; j++)
+//                keyPressed(j);
+//        }
+//    } else {
 
-        randomAction();
-        count++;
-    }
-    try {
-        aiThread.sleep(500);
-        System.out.println("[debug] counter:" + count);
-    } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-    }
+                randomAction();
+//        count++;
+//    }
+
+                try {
+                    aiThread.sleep(500);
+//        aiThread.sleep(env.config.tableDelayMillis * 10);
+                    System.out.println("[debug] counter:" + count);
+
+                } catch (InterruptedException e) {
+                   break;
+                }
 
                 /*try {
                     synchronized (this) {
@@ -228,12 +231,25 @@ public class Player implements Runnable {
         // TODO implement
         System.out.println("[debug] Player.terminate:" + this.id);
         terminate = true;
+
+        // stop ai thread
+        if (!human) {
+
+            aiThread.interrupt();
+            while (aiThread.isAlive())
+                try {
+                    aiThread.join();
+                } catch (InterruptedException ignored) {
+                }
+        }
+        // stop player thread
         playerThread.interrupt();
         while (playerThread.isAlive())
             try {
                 playerThread.join();
             } catch (InterruptedException ignored) {
             }
+
     }
 
     /**
@@ -241,7 +257,7 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    public void keyPressed(int slot) {
+    public synchronized void keyPressed(int slot) {
         System.out.println("[debug] Current keyPressed thread - " + playerThread.getName());
         System.out.println("[debug] Current keyPressed getState:" + this.id + " " + playerThread.getState() + " " + playerState);
         System.out.println("[debug] Player.keyPressed:" + slot + " player id:" + this.id + " card:" + this.table.slotToCard[slot]);
