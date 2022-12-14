@@ -184,16 +184,37 @@ public class Player implements Runnable {
         System.out.println("[debug] Player.createArtificialIntelligence");
         aiThread = new Thread(() -> {
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
+            int count=0;
             while (!terminate) {
-                randomAction();
-                try {
+
+    if (count == 2) {
+        count = 0;
+        List<int[]> deck = this.env.util.findSets(this.dealer.getDeck(), 1);
+        System.out.println("[debug] SmartActionsAI ListSize:" + deck.get(0).length);
+        for (int i = 0; i < deck.size(); i++) {
+            for (int j = 0; j < deck.get(i).length; j++)
+                keyPressed(j);
+        }
+    } else {
+
+        randomAction();
+        count++;
+    }
+    try {
+        aiThread.sleep(500);
+        System.out.println("[debug] counter:" + count);
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+    }
+
+                /*try {
                     synchronized (this) {
                         wait(env.config.tableDelayMillis * 10);
                     }
                 } catch (InterruptedException ignored) {
                     System.out.println("[debug] Player.createArtificialIntelligence error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:"+ignored);
 
-                }
+                }*/
             }
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);

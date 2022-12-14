@@ -274,4 +274,8 @@ public class Dealer implements Runnable {
         this.env.ui.announceWinner(getWinnersIds());
         // TODO implement
     }
+    public List<Integer> getDeck()
+    {
+        return this.deck;
+    }
 }
