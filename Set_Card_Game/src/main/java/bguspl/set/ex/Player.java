@@ -1,7 +1,4 @@
 package bguspl.set.ex;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
@@ -105,14 +102,13 @@ public class Player implements Runnable {
      */
     @Override
     public void run() {
-        //    System.out.println("[debug] Player.run start:" + this.id);
         playerThread = Thread.currentThread();
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + "starting.");
         synchronized (this.dealer) {
             if (!human) createArtificialIntelligence();
         }
         while (!terminate) {
-            // consume form queue
+            // consume from queue
             try {
                 int slot = this.actions.take();
                 boolean isSet = false;
@@ -122,37 +118,25 @@ public class Player implements Runnable {
                     this.dealer.claimSet(this);
                 }
                 if (isSet) {
-                    //   System.out.println("[debug] run 0:" + playerThread.getName() + " state:" + this.playerState);
                     synchronized (this.dealer) {
-                        //
                         this.dealer.notify();
                     }
-                    //  System.out.println("[debug] run 1:" + playerThread.getName() + " state:" + this.playerState);
                     synchronized (this) {
-                        //      System.out.println("[debug] run 2:" + playerThread.getName() + " " + this.playerState);
                         if (this.playerState == PlayerState.INIT) {
-                            //    System.out.println("[debug] run 2.5:" + playerThread.getName() + " " + this.playerState + " " + playerThread.getState() + " " + this.table.getPlayerCards(id).size());
                             this.wait();
                         }
-                        //       System.out.println("[debug] run 2.6:" + playerThread.getName() + " " + this.playerState + " " + playerThread.getState());
                     }
-                    //
-                    //    System.out.println("[debug] run 3:" + playerThread.getName() + " state:" + this.playerState);
 
                     switch (this.playerState) {
                         case INIT:
-                            //    System.out.println("[debug] run 8:" + playerThread.getName() + " wtf!!!!!!!!");
                             break;
                         case SCORED:
-                            //     System.out.println("[debug] run 4:" + playerThread.getName() + " state:" + this.playerState);
                             updateScoreTimeout(env.config.pointFreezeMillis);
                             break;
                         case PENALIZED:
-                            //        System.out.println("[debug] run 5:" + playerThread.getName() + " state:" + this.playerState);
                             updateScoreTimeout(env.config.penaltyFreezeMillis);
                             break;
                     }
-                    // System.out.println("[debug] run 6:" + playerThread.getName() + " state:" + this.playerState);
                 }
             } catch (InterruptedException ignored) {
             }
@@ -162,8 +146,6 @@ public class Player implements Runnable {
         } catch (InterruptedException ignored) {
         }
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
-        //  System.out.println("[debug] Player.run end:" + this.id);
-
     }
 
     private void updateScoreTimeout(long time) {
@@ -179,11 +161,9 @@ public class Player implements Runnable {
     }
 
     private void randomAction() {
-        // TODO implement player key press simulator
         int numOfKeys = env.config.playerKeys(id).length;
         int randomSlot = ThreadLocalRandom.current().nextInt(0, numOfKeys);
         keyPressed(randomSlot);
-        //  System.out.println("[debug] Player.createArtificialIntelligence running");
     }
 
     /**
@@ -191,22 +171,15 @@ public class Player implements Runnable {
      * key presses. If the queue of key presses is full, the thread waits until it is not full.
      */
     private void createArtificialIntelligence() {
-        // note: this is a very very smart AI (!)
-        //  System.out.println("[debug] Player.createArtificialIntelligence");
         aiThread = new Thread(() -> {
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
-            int count = 0;
             while (!terminate) {
                 randomAction();
-
                 try {
                     aiThread.sleep(500);
-                    //        System.out.println("[debug] counter:" + count);
-
                 } catch (InterruptedException e) {
                     break;
                 }
-
             }
             env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -217,8 +190,6 @@ public class Player implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {
-        // TODO implement
-        //    System.out.println("[debug] Player.terminate:" + this.id);
         terminate = true;
 
         // stop ai thread
@@ -238,8 +209,8 @@ public class Player implements Runnable {
                 playerThread.join();
             } catch (InterruptedException ignored) {
             }
-
     }
+
 
     /**
      * This method is called when a key is pressed.
@@ -248,26 +219,15 @@ public class Player implements Runnable {
      */
     public void keyPressed(int slot) {
         synchronized (this) {
-
-//            System.out.println("[debug] Current keyPressed thread - " + playerThread.getName());
-//            System.out.println("[debug] Current keyPressed getState:" + this.id + " " + playerThread.getState() + " " + playerState);
-//            System.out.println("[debug] Player.keyPressed:" + slot + " player id:" + this.id + " card:" + this.table.slotToCard[slot]);
-//            System.out.println("[debug] Player.q size:" + this.actions.size() + " thread:" + playerThread.getName());
-
             if (this.playerState != PlayerState.INIT) {
                 return;
             }
-
-
             if (this.table.isEmptySlot(slot)) {
                 return;
             }
-            //
             if (this.actions.size() >= 3) {
                 return;
             }
-            // TODO implement
-            //
             this.actions.add(slot);
         }
     }
@@ -279,23 +239,11 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-
         synchronized (this) {
-            // TODO implement
-            //    System.out.println("[debug] Player.point for player:" + playerThread.getName() + " state:" + playerThread.getState());
-            int ignored = table.countCards(); // this part is just for demonstration in the unit tests
+            int ignored = table.countCards();
             env.ui.setScore(id, ++score);
             this.notify();
             this.playerState = PlayerState.SCORED;
-            //     System.out.println("[debug] Player.point for player end:" + playerThread.getName() + " state:" + playerThread.getState());
-        }
-        //   System.out.println("[debug] Player.point for player end:" + playerThread.getName() + " state:" + playerThread.getState());
-
-    }
-
-    public void retry() {
-        synchronized (this) {
-            this.notify();
         }
     }
 
@@ -307,11 +255,12 @@ public class Player implements Runnable {
             this.notify();
             this.playerState = PlayerState.PENALIZED;
         }
-        //  System.out.println("[debug] Current penalty thread - " + Thread.currentThread().getName());
     }
 
+    /**
+     * Returns the total score of the player
+     */
     public int getScore() {
-        // System.out.println("[debug] Player.getScore:");
         return score;
     }
 }

@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -65,7 +64,6 @@ public class Dealer implements Runnable {
 
     private void startPlayers() {
         for (int i = 0; i < players.length; i++) {
-            //   System.out.println("[debug] Dealer run() player-size:" + this.players.length);
             new Thread(players[i]).start();
         }
     }
@@ -75,13 +73,10 @@ public class Dealer implements Runnable {
      */
     @Override
     public void run() {
-        System.out.println("[debug] Dealer run() player-size:" + this.players.length);
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " starting.");
         startPlayers();
-        System.out.println("[debug] Dealer run() player-size:" + this.players.length);
 
         while (!shouldFinish()) {
-            //
             do {
                 Collections.shuffle(deck);
 
@@ -119,13 +114,9 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {
-        // TODO implement
-        //  System.out.println("[debug] Dealer.terminate:");
-
         terminate = true;
         for (int i = players.length - 1; i >= 0; i--) {
             players[i].terminate();
-
         }
     }
 
@@ -136,7 +127,6 @@ public class Dealer implements Runnable {
      */
     private boolean shouldFinish() {
         return terminate || env.util.findSets(deck, 1).size() == 0;
-
     }
 
 
@@ -145,20 +135,21 @@ public class Dealer implements Runnable {
     }
 
     private void removeCardsFromTableForPlayer(int player) {
-        // TODO implement
-        System.out.println("[debug] player:" + player);
-
         List<Integer> playerCards = new ArrayList<>(this.table.getPlayerCards(player));
+
         // case card was remove
         if (playerCards.size() < 3) {
-            this.players[player].retry();
+            synchronized (this.players[player]){
+                this.players[player].notify();
+            }
             return;
         }
+
         List<int[]> setSearch = this.env.util.findSets(playerCards, 1);
 
         if (setSearch.size() > 0) {
             for (int card : setSearch.get(0)) {
-                this.table.removeCard(this.table.cardToSlot[card]); // removeCardFromPlayerSet call
+                this.table.removeCard(this.table.cardToSlot[card]);
             }
             this.players[player].point();
             this.startTime = System.currentTimeMillis();
@@ -167,10 +158,8 @@ public class Dealer implements Runnable {
             // remove token
             for (int card : playerCards) {
                 int slot = this.table.cardToSlot[card];
-                this.table.removeToken(player, slot);// removeCardFromPlayerSet call
+                this.table.removeToken(player, slot);
             }
-
-            //
             this.players[player].penalty();
             //
         }
@@ -181,18 +170,12 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        // TODO implement
         synchronized (this.table) {
-            System.out.println("[debug] player start--------");
-
             while (this.setClaims.size() > 0) {
                 Integer player = this.setClaims.poll();
                 updateTimerDisplay(false);
-
                 removeCardsFromTableForPlayer(player);
-
             }
-            System.out.println("[debug] player end --------");
         }
     }
 
@@ -201,7 +184,6 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        // TODO implement
         for (int i = 0; i < this.table.slotToCard.length; i++) {
 
             // case deck is empty
@@ -217,7 +199,6 @@ public class Dealer implements Runnable {
                 this.table.placeCard(card, i);
             }
         }
-
     }
 
     /**
@@ -239,7 +220,6 @@ public class Dealer implements Runnable {
      */
     private void updateTimerDisplay(boolean reset) {
         if (this.env.config.turnTimeoutMillis > 0) {
-            // TODO implement
             if (reset) {
                 this.reshuffleTime = System.currentTimeMillis() + this.env.config.turnTimeoutMillis;
             }
@@ -251,7 +231,6 @@ public class Dealer implements Runnable {
                 this.startTime = System.currentTimeMillis();
             }
             long diff = System.currentTimeMillis() - this.startTime;
-
             this.env.ui.setCountdown(diff, false);
 
         }
@@ -264,13 +243,11 @@ public class Dealer implements Runnable {
     private void removeAllCardsFromTable() {
         // TODO implement
         for (int i = 0; i < this.table.slotToCard.length; i++) {
-            //
             Integer currCard = this.table.slotToCard[i];
             if (currCard == null) {
                 continue;
             }
             this.deck.add(currCard);
-            //  System.out.println("[debug] removeAllCardsFromTable currCard:" + currCard);
             this.table.removeCard(i);
         }
     }
@@ -283,15 +260,10 @@ public class Dealer implements Runnable {
             maxScore = Math.max(maxScore, player.getScore());
         }
         for (Player player : players) {
-            System.out.println("[debug]  playerID:" + player.getId());
-
             if (player.getScore() == maxScore) {
-                System.out.println("[debug]  playerID entered:" + player.id);
-
                 winners.add(player.getId());
             }
         }
-        System.out.println("[debug]  winners:" + winners);
 
         return winners.stream().mapToInt(i -> i).toArray();
     }
@@ -300,15 +272,8 @@ public class Dealer implements Runnable {
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        System.out.println("[debug] getWinnersIds:" + Arrays.toString(getWinnersIds()));
-
         this.env.ui.announceWinner(getWinnersIds());
-
         terminate();
-        // TODO implement
     }
 
-    public List<Integer> getDeck() {
-        return this.deck;
-    }
 }

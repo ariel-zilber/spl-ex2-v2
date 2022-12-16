@@ -43,9 +43,9 @@ public class Table {
 
     //
     // todo
-    private volatile List<List<Integer>> playerCards;
-    private Boolean[][] selectedSlotsByPlayer;
-    private ReentrantLock lock;
+    private final List<List<Integer>> playerCards;
+    private final Boolean[][] selectedSlotsByPlayer;
+    private final ReentrantLock lock;
 
     /**
      * Constructor for testing.
@@ -60,16 +60,16 @@ public class Table {
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
         lock = new ReentrantLock(true);
+
         // generate empty array list
         playerCards = new ArrayList<>();
         selectedSlotsByPlayer = new Boolean[env.config.players][env.config.tableSize];
 
+        //
         for (int player = 0; player < env.config.players; player++) {
             playerCards.add(new ArrayList<>());
             Arrays.fill(selectedSlotsByPlayer[player], Boolean.FALSE);
         }
-
-
     }
 
     /**
@@ -129,24 +129,29 @@ public class Table {
 
     }
 
+    /**
+     * Checks whenever a given slot is empty
+     * @param slot
+     * @return
+     */
     public boolean isEmptySlot(int slot) {
         return this.slotToCard[slot] == null;
     }
 
+    /**
+     *  Remove mapping for a card to a slot
+     * @param slot
+     */
     private void removeSlotMapping(int slot) {
-        // remove card from mapping
         int card = this.slotToCard[slot];
         this.slotToCard[slot] = null;
         this.cardToSlot[card] = null;
     }
 
     private void removeCardFromPlayerSet(int player, int card) {
-        //  System.out.println("[debug] Table.removeCardFromPlayerSet:" + player + " " + card);
-
         int index = this.playerCards.get(player).indexOf(card);
         if (index != -1) {
             this.playerCards.get(player).remove(index);
-
         }
     }
 
@@ -164,12 +169,10 @@ public class Table {
 
     public void removeCard(int slot) {
         this.lock.lock();
-        //System.out.println("[debug] table.removeCard slot:" + slot);
-
         // TODO implement
         this.env.ui.removeCard(slot);
         for (int player = 0; player < env.config.players; player++) {
-            removeToken(player, slot);// removeCardFromPlayerSet call
+            removeToken(player, slot);
         }
 
         removeSlotMapping(slot);
@@ -205,20 +208,15 @@ public class Table {
         if (this.slotToCard[slot] == null) {
             return;
         }
-        // System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
         if (!selectedSlotsByPlayer[player][slot]) {
             this.playerCards.get(player).add(this.slotToCard[slot]);
             this.env.ui.placeToken(player, slot);
             selectedSlotsByPlayer[player][slot] = true;
         }
-        //  System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
-        // TODO implement
     }
 
     public void keyPressed(int player, int slot) {
         lock.lock();
-
-        //   System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
         if (!removeToken(player, slot)) {
             placeToken(player, slot);
         }
@@ -234,8 +232,6 @@ public class Table {
      * @return - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-
-        //    System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
         if (selectedSlotsByPlayer[player][slot]) {
             this.env.ui.removeToken(player, slot);
             if (this.slotToCard[slot] == null) {
@@ -246,7 +242,6 @@ public class Table {
             return true;
         }
 
-        // TODO implement
         return false;
     }
 }

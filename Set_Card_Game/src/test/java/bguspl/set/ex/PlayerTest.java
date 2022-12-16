@@ -45,7 +45,6 @@ class PlayerTest {
     void setUp() {
         // purposely do not find the configuration files (use defaults here).
         Env env = new Env(logger, new Config(logger, "config1.properties"), ui, util);
-        System.out.println(env.config.players);
         player = new Player(env, dealer, table, 0, true);
         assertInvariants();
     }
