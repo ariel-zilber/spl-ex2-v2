@@ -57,13 +57,13 @@ public class Player implements Runnable {
     private final Dealer dealer;
 
 
-    public final BlockingQueue<Integer> actions; //todo
+    public final BlockingQueue<Integer> actions;
 
     enum PlayerState {
         INIT, PENALIZED, SCORED
     }
 
-    public PlayerState playerState; //todo
+    public PlayerState playerState;
 
 
     public boolean isTerminate() {

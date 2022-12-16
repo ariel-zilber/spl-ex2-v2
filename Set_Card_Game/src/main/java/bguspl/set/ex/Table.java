@@ -41,8 +41,6 @@ public class Table {
         return tableCards;
     }
 
-    //
-    // todo
     private final List<List<Integer>> playerCards;
     private final Boolean[][] selectedSlotsByPlayer;
     private final ReentrantLock lock;
@@ -120,7 +118,6 @@ public class Table {
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
 
-        // TODO implement
         this.env.ui.placeCard(card, slot);
         try {
             Thread.sleep(env.config.tableDelayMillis);
@@ -169,7 +166,6 @@ public class Table {
 
     public void removeCard(int slot) {
         this.lock.lock();
-        // TODO implement
         this.env.ui.removeCard(slot);
         for (int player = 0; player < env.config.players; player++) {
             removeToken(player, slot);
@@ -186,6 +182,11 @@ public class Table {
 
     }
 
+    /***
+     * Counts total tokens placed on a given slot
+     * @param slot
+     * @return
+     */
     public int countTokens(int slot) {
         int slotCount = 0;
         for (int player = 0; player < env.config.players; player++) {
@@ -215,6 +216,11 @@ public class Table {
         }
     }
 
+    /**
+     * Presses a key and places or removes a slot on the table
+     * @param player
+     * @param slot
+     */
     public void keyPressed(int player, int slot) {
         lock.lock();
         if (!removeToken(player, slot)) {

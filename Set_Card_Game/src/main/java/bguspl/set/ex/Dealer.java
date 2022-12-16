@@ -63,8 +63,8 @@ public class Dealer implements Runnable {
     }
 
     private void startPlayers() {
-        for (int i = 0; i < players.length; i++) {
-            new Thread(players[i]).start();
+        for (Player player : players) {
+            new Thread(player).start();
         }
     }
 
@@ -130,6 +130,10 @@ public class Dealer implements Runnable {
     }
 
 
+    /**
+     * Checks whenever the table has available moves remaining
+     * @return
+     */
     private boolean noMoreMovesOnTable() {
         return env.util.findSets(this.table.getTableCards(), 1).size() == 0;
     }
@@ -205,8 +209,6 @@ public class Dealer implements Runnable {
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
     private void sleepUntilWokenOrTimeout() {
-        // TODO implement
-        // todo change to busy wait
         try {
             synchronized (this) {
                 this.wait(env.config.tableDelayMillis);
@@ -241,7 +243,6 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        // TODO implement
         for (int i = 0; i < this.table.slotToCard.length; i++) {
             Integer currCard = this.table.slotToCard[i];
             if (currCard == null) {
