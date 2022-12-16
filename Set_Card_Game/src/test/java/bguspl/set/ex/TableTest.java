@@ -7,6 +7,7 @@ import bguspl.set.Util;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -29,7 +30,9 @@ class TableTest {
         properties.put("FeatureCount", "4");
         properties.put("TableDelaySeconds", "0");
         properties.put("PlayerKeys1", "81,87,69,82");
-        properties.put("PlayerKeys2", "85,73,79,80");
+        properties.put("PlayerKeys1", "81,87,69,82");
+        properties.put("HumanPlayers", "2");
+
         MockLogger logger = new MockLogger();
         Config config = new Config(logger, properties);
         slotToCard = new Integer[config.tableSize];
@@ -93,6 +96,128 @@ class TableTest {
     void placeCard_AllSlotsAreFilled() {
         fillAllSlots();
         placeSomeCardsAndAssert();
+    }
+
+    // place token related tests:
+    @Test
+    void placeToken_emptySlot() {
+
+        // make all slots empty
+        Arrays.fill(slotToCard, null);
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+        // attempt to place token on empty slot
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            table.placeToken(0,slot);
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+    }
+
+    @Test
+    void placeToken_notEmptySlot() {
+        fillAllSlots();
+
+        // slots should not have placed tokens
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+        // place tokens for a single player
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            table.placeToken(0,slot);
+            assertEquals(table.countTokens(slot), 1);
+        }
+
+        // repeat for second player
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            table.placeToken(1,slot);
+            assertEquals(table.countTokens(slot), 2);
+        }
+    }
+
+    @Test
+    void placeToken_duplicated() {
+        fillAllSlots();
+
+        // slots should not have placed tokens
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+        // should not be able to place token more then once
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            table.placeToken(0,slot);
+            table.placeToken(0,slot);
+            assertEquals(table.countTokens(slot), 1);
+        }
+
+    }
+    // remove token related tests:
+
+    @Test
+    void removeToken_emptySlot() {
+        //
+        Arrays.fill(slotToCard, null);
+        // slots should not have placed tokens
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.removeToken(0,slot),false);
+        }
+
+    }
+
+    @Test
+    void removeToken_notEmptySlotWithPlacedToken() {
+
+        fillAllSlots();
+
+        // retry with every slot
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+
+            // slot should not have any placed token
+            assertEquals(table.countTokens(slot), 0);
+
+            // place token on table
+            table.placeToken(0,slot);
+
+            // token should have been placed
+            assertEquals(table.countTokens(slot), 1);
+
+            // remove token
+            assertEquals(table.removeToken(0,slot),true);
+
+            // token should have been removed
+            assertEquals(table.countTokens(slot), 0);
+
+        }
+    }
+
+    @Test
+    void removeToken_notEmptySlotWithoutPlacedToken() {
+        fillAllSlots();
+
+        // slots should not have placed tokens
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.countTokens(slot), 0);
+        }
+
+        // place tokens for a single player
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            table.placeToken(0,slot);
+            assertEquals(table.countTokens(slot), 1);
+        }
+
+        // attempt to remove tokens for second player
+        for(int slot=0;slot<table.slotToCard.length;slot++){
+            assertEquals(table.removeToken(1,slot),false);
+        }
+
     }
 
     static class MockUserInterface implements UserInterface {

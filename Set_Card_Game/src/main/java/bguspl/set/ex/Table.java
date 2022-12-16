@@ -31,6 +31,15 @@ public class Table {
      */
     protected final Integer[] cardToSlot; // slot per card (if any)
 
+    public List<Integer> getTableCards() {
+        List<Integer> tableCards = new ArrayList<>();
+        for (Integer integer : this.slotToCard) {
+            if (integer != null) {
+                tableCards.add(integer);
+            }
+        }
+        return tableCards;
+    }
 
     //
     // todo
@@ -120,6 +129,10 @@ public class Table {
 
     }
 
+    public boolean isEmptySlot(int slot) {
+        return this.slotToCard[slot] == null;
+    }
+
     private void removeSlotMapping(int slot) {
         // remove card from mapping
         int card = this.slotToCard[slot];
@@ -128,7 +141,7 @@ public class Table {
     }
 
     private void removeCardFromPlayerSet(int player, int card) {
-        System.out.println("[debug] Table.removeCardFromPlayerSet:" + player + " " + card);
+        //  System.out.println("[debug] Table.removeCardFromPlayerSet:" + player + " " + card);
 
         int index = this.playerCards.get(player).indexOf(card);
         if (index != -1) {
@@ -151,7 +164,7 @@ public class Table {
 
     public void removeCard(int slot) {
         this.lock.lock();
-        System.out.println("[debug] table.removeCard slot:" + slot);
+        //System.out.println("[debug] table.removeCard slot:" + slot);
 
         // TODO implement
         this.env.ui.removeCard(slot);
@@ -170,6 +183,18 @@ public class Table {
 
     }
 
+    public int countTokens(int slot) {
+        int slotCount = 0;
+        for (int player = 0; player < env.config.players; player++) {
+            for (int i = 0; i < playerCards.get(player).size(); i++) {
+                if (playerCards.get(player).get(i) == slot) {
+                    slotCount += 1;
+                }
+            }
+        }
+        return slotCount;
+    }
+
     /**
      * Places a player token on a grid slot.
      *
@@ -180,20 +205,20 @@ public class Table {
         if (this.slotToCard[slot] == null) {
             return;
         }
-        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
+        // System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " lock");
         if (!selectedSlotsByPlayer[player][slot]) {
             this.playerCards.get(player).add(this.slotToCard[slot]);
             this.env.ui.placeToken(player, slot);
             selectedSlotsByPlayer[player][slot] = true;
         }
-        System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
+        //  System.out.println("[debug] Table.placeToken player:" + player + ",slot:" + slot + " unlock");
         // TODO implement
     }
 
     public void keyPressed(int player, int slot) {
         lock.lock();
 
-        System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
+        //   System.out.println("[debug] Table.keyPressed player:" + player + ",slot" + slot);
         if (!removeToken(player, slot)) {
             placeToken(player, slot);
         }
@@ -210,7 +235,7 @@ public class Table {
      */
     public boolean removeToken(int player, int slot) {
 
-        System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
+        //    System.out.println("[debug] Table.removeToken player:" + player + ",slot:" + slot);
         if (selectedSlotsByPlayer[player][slot]) {
             this.env.ui.removeToken(player, slot);
             if (this.slotToCard[slot] == null) {
